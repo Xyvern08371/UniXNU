@@ -117,6 +117,16 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare storage ABI headers
+        run: |
+          cd out/fuxi/tree
+          if [ ! -d refer/IOStorageFamily/.git ]; then
+            git clone --depth 1 https://github.com/apple-oss-distributions/IOStorageFamily.git refer/IOStorageFamily
+          fi
+          mkdir -p build/storage-abi/include/IOKit/storage
+          cp refer/IOStorageFamily/*.h build/storage-abi/include/IOKit/storage/
+          cp "$(xcrun --sdk macosx --show-sdk-path)/usr/include/TargetConditionals.h" build/storage-abi/include/TargetConditionals.h
+
       - name: Build kernel
         env:
           IPSW_URL: ${{ inputs.ipsw_url }}
