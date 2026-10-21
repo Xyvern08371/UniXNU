@@ -119,6 +119,7 @@ jobs:
 
       - name: Prepare storage ABI headers
         run: |
+          ./unixnu tree
           cd out/fuxi/tree
           if [ ! -d refer/IOStorageFamily/.git ]; then
             git clone --depth 1 https://github.com/apple-oss-distributions/IOStorageFamily.git refer/IOStorageFamily
