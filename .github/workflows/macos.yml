@@ -20,11 +20,16 @@ on:
         type: choice
         options:
           - kernel
+          - kernel payload
           - kernel userdata
           - kernel userdata payload
         default: kernel userdata
       ipsw_url:
         description: IPSW URL (empty uses board.toml)
+        required: false
+        default: ""
+      unique_chip_id:
+        description: 8-byte platform seed hex (overrides the UNIXNU_UNIQUE_CHIP_ID secret)
         required: false
         default: ""
       trust_cache_url:
@@ -134,6 +139,7 @@ jobs:
         if: contains(inputs.steps, 'payload')
         env:
           UNIQUE_CHIP_ID: ${{ secrets.UNIXNU_UNIQUE_CHIP_ID }}
+          CHIP_ID_INPUT: ${{ inputs.unique_chip_id }}
           SKIP_SETUP: ${{ inputs.skip_setup }}
           OWNER_TRUST_CACHE: ${{ inputs.owner_trust_cache }}
         run: |
@@ -146,7 +152,8 @@ jobs:
             fi
           fi
           if [ -f "$RUNNER_TEMP/data.dbr" ]; then args+=(--data-ramdisk "$RUNNER_TEMP/data.dbr"); fi
-          if [ -n "$UNIQUE_CHIP_ID" ]; then args+=(--unique-chip-id "$UNIQUE_CHIP_ID"); fi
+          CHIP_ID="${CHIP_ID_INPUT:-$UNIQUE_CHIP_ID}"
+          if [ -n "$CHIP_ID" ]; then args+=(--unique-chip-id "$CHIP_ID"); fi
           if [ "$SKIP_SETUP" = "true" ]; then args+=(--skip-setup); fi
           ./unixnu build payload "${args[@]}"
 
