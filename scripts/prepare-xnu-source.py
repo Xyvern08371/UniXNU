@@ -15,6 +15,14 @@ CACHE = Path(f'.cache/sources/xnu-driverkit-{TAG.removeprefix("xnu-")}.json')
 URL = f'https://api.github.com/repos/apple-oss-distributions/xnu/contents/iokit/DriverKit?ref={TAG}'
 
 
+def _request(url):
+    req = urllib.request.Request(url)
+    token = os.environ.get('GITHUB_TOKEN') or os.environ.get('GH_TOKEN')
+    if token:
+        req.add_header('Authorization', 'Bearer ' + token)
+    return req
+
+
 def restore(entry, destination=DESTINATION, tag=TAG):
     if entry['type'] != 'file' or not entry['name'].endswith('.h'):
         return None
@@ -22,7 +30,7 @@ def restore(entry, destination=DESTINATION, tag=TAG):
     target = destination / name
     if target.exists():
         return None
-    data = urllib.request.urlopen(entry['download_url'], timeout=30).read()
+    data = urllib.request.urlopen(_request(entry['download_url']), timeout=30).read()
     digest = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
     if digest != entry['sha']:
         raise ValueError(f'Git blob hash mismatch: {entry["name"]}')
@@ -37,12 +45,12 @@ if __name__ == '__main__':
         raise SystemExit('Create the local XNU work source before preparing headers')
     if not CACHE.exists():
         CACHE.parent.mkdir(parents=True, exist_ok=True)
-        CACHE.write_bytes(urllib.request.urlopen(URL, timeout=30).read())
+        CACHE.write_bytes(urllib.request.urlopen(_request(URL), timeout=30).read())
     entries = json.loads(CACHE.read_text())
     crypto_cache = CACHE.with_name(f'xnu-driverkit-crypto-{TAG.removeprefix("xnu-")}.json')
     if not crypto_cache.exists():
         crypto_url = URL.replace('/DriverKit?', '/DriverKit/crypto?')
-        crypto_cache.write_bytes(urllib.request.urlopen(crypto_url, timeout=30).read())
+        crypto_cache.write_bytes(urllib.request.urlopen(_request(crypto_url), timeout=30).read())
     for entry in json.loads(crypto_cache.read_text()):
         entry['relative'] = 'crypto/' + entry['name']
         entries.append(entry)
@@ -53,7 +61,7 @@ if __name__ == '__main__':
         if not trust_cache.exists():
             url = ('https://api.github.com/repos/apple-oss-distributions/xnu/'
                    f'contents/EXTERNAL_HEADERS/TrustCache?ref={trust_tag}')
-            trust_cache.write_bytes(urllib.request.urlopen(url, timeout=30).read())
+            trust_cache.write_bytes(urllib.request.urlopen(_request(url), timeout=30).read())
         trust_destination = Path('.cache/xnu-work/EXTERNAL_HEADERS/TrustCache')
         def restore_trust(entry):
             return restore(entry, trust_destination, trust_tag)
