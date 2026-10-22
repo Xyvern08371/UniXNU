@@ -130,6 +130,7 @@ jobs:
 
       - name: Build kernel
         env:
+          JOBS: "1"
           IPSW_URL: ${{ inputs.ipsw_url }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
