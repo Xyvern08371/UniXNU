@@ -67,14 +67,27 @@ if [ -f .cache/xnu-work/EXTERNAL_HEADERS/CoreEntitlements/Entitlements.h ]; then
 else
   echo "WARN: CoreEntitlements/Entitlements.h not found in work tree"
 fi
-# necp_client.c includes <CodeSignature/Entitlements.h>; xnu ships it as EXTERNAL_HEADERS/CoreEntitlements
-if [ -f .cache/xnu-work/EXTERNAL_HEADERS/CoreEntitlements/Entitlements.h ]; then
-  mkdir -p .cache/xnu-work/EXTERNAL_HEADERS/CodeSignature
-  cp .cache/xnu-work/EXTERNAL_HEADERS/CoreEntitlements/Entitlements.h .cache/xnu-work/EXTERNAL_HEADERS/CodeSignature/Entitlements.h
-  echo "CodeSignature/Entitlements.h linked from CoreEntitlements"
-else
-  echo "WARN: CoreEntitlements/Entitlements.h not found in work tree"
+# public-entitlements-header: necp_client.c wants kCS* and the aggregate CoreEntitlements header
+sed -i '' 's|#include <CodeSignature/Entitlements.h>|#include <CoreEntitlements/CoreEntitlements.h>|' .cache/xnu-work/bsd/net/necp_client.c
+if ! grep -q "kCSWebBrowserHostEntitlement" .cache/xnu-work/EXTERNAL_HEADERS/CoreEntitlements/CoreEntitlements.h 2>/dev/null; then
+  python3 - <<'PY'
+from pathlib import Path
+p = Path('.cache/xnu-work/EXTERNAL_HEADERS/CoreEntitlements/CoreEntitlements.h')
+if p.exists():
+    s = p.read_text()
+    add = '#define kCSWebBrowserNetworkEntitlement "com.apple.developer.web-browser-engine.networking"\n#define kCSWebBrowserWebContentEntitlement "com.apple.developer.web-browser-engine.webcontent"\n#define kCSWebBrowserGPUEntitlement "com.apple.developer.web-browser-engine.rendering"\n#define kCSWebBrowserHostEntitlement "com.apple.developer.web-browser-engine.host"\n'
+    marker = '#ifndef CORE_ENTITLEMENTS_H\n#define CORE_ENTITLEMENTS_H\n'
+    if marker in s:
+        s = s.replace(marker, marker + add, 1)
+        p.write_text(s)
+        print('kCS* constants added to CoreEntitlements.h')
+    else:
+        print('CoreEntitlements.h marker not found')
+else:
+    print('CoreEntitlements.h missing; include already points at CoreEntitlements/CoreEntitlements.h')
+PY
 fi
+grep -n "CoreEntitlements/CoreEntitlements.h" .cache/xnu-work/bsd/net/necp_client.c | head -2
 python3 scripts/prepare-xnu-source.py
 # The first pass of a new tree (XNU_BOOTSTRAP=1, set by the unixnu driver) only has to leave the compile records and
 # link.filelist for the archive builders that run after it, so it links without their archives.
