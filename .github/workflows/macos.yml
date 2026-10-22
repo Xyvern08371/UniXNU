@@ -127,6 +127,17 @@ jobs:
           mkdir -p build/storage-abi/include/IOKit/storage
           cp refer/IOStorageFamily/*.h build/storage-abi/include/IOKit/storage/
           cp "$(xcrun --sdk macosx --show-sdk-path)/usr/include/TargetConditionals.h" build/storage-abi/include/TargetConditionals.h
+          echo "--- 99-fuxi patch in tree? ---"
+          ls out/fuxi/tree/patches/xnu/ 2>/dev/null | grep "99-fuxi" || echo "NO 99-fuxi patch in tree"
+          echo "--- MakeInc.def location ---"
+          MK=$(find out/fuxi/tree -name MakeInc.def -path "*makedefs*" 2>/dev/null | head -1)
+          echo "MakeInc.def: ${MK:-not found}"
+          grep -n "CXXFLAGS_GEN" "$MK" 2>/dev/null | head -2
+          if [ -n "$MK" ]; then
+            sed -i '' 's|-fapple-kext $(OTHER_CXXFLAGS)|-fapple-kext -DKERNEL $(OTHER_CXXFLAGS)|' "$MK"
+            echo "--- CXXFLAGS_GEN after sed ---"
+            grep -n "CXXFLAGS_GEN" "$MK" | head -2
+          fi
 
       - name: Build kernel
         env:
