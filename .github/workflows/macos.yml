@@ -134,71 +134,7 @@ jobs:
           IPSW_URL: ${{ inputs.ipsw_url }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          # Force KERNEL for C++ compiles: DriverKit iig-generated .cpp needs
-          # IORPCMessageFromMach which sits under #if KERNEL in IORPC.h.
-          sed -i '' 's|^CXXFLAGS_GEN  = -std=gnu++2b -fsized-deallocation -fapple-kext $(OTHER_CXXFLAGS)$|CXXFLAGS_GEN  = -std=gnu++2b -fsized-deallocation -fapple-kext -DKERNEL $(OTHER_CXXFLAGS)|' out/fuxi/tree/.cache/xnu-work/makedefs/MakeInc.def
-          sed -i '' 's|^EXTRA_MAKE_ARGS=()$|EXTRA_MAKE_ARGS=()\nEXTRA_MAKE_ARGS+=("OTHER_CXXFLAGS=-DKERNEL")|' out/fuxi/tree/scripts/build-xnu-4k-baseline.sh
-          echo "--- CXXFLAGS_GEN after patch ---"
-          grep -n "CXXFLAGS_GEN" out/fuxi/tree/.cache/xnu-work/makedefs/MakeInc.def | head -3
-          echo "--- baseline KERNEL flag ---"
-          grep -n "OTHER_CXXFLAGS=-DKERNEL" out/fuxi/tree/scripts/build-xnu-4k-baseline.sh | head -3
+        run: |
           args=()
           if [ -n "$IPSW_URL" ]; then args+=(--ipsw "$IPSW_URL"); fi
           ./unixnu build kernel "${args[@]}"
-
-      - name: Build userdata
-        if: contains(inputs.steps, 'userdata')
-        env:
-          IPSW_URL: ${{ inputs.ipsw_url }}
-        run: |
-          args=()
-          if [ -n "$IPSW_URL" ]; then args+=(--ipsw "$IPSW_URL"); fi
-          ./unixnu build userdata "${args[@]}"
-
-      - name: Build payload
-        if: contains(inputs.steps, 'payload')
-        env:
-          UNIQUE_CHIP_ID: ${{ secrets.UNIXNU_UNIQUE_CHIP_ID }}
-          CHIP_ID_INPUT: ${{ inputs.unique_chip_id }}
-          SKIP_SETUP: ${{ inputs.skip_setup }}
-          OWNER_TRUST_CACHE: ${{ inputs.owner_trust_cache }}
-        run: |
-          args=()
-          if [ -f "$RUNNER_TEMP/trustcache" ]; then
-            if [ "$OWNER_TRUST_CACHE" = "true" ]; then
-              args+=(--owner-trust-cache "$RUNNER_TEMP/trustcache")
-            else
-              args+=(--trust-cache "$RUNNER_TEMP/trustcache")
-            fi
-          fi
-          if [ -f "$RUNNER_TEMP/data.dbr" ]; then args+=(--data-ramdisk "$RUNNER_TEMP/data.dbr"); fi
-          CHIP_ID="${CHIP_ID_INPUT:-$UNIQUE_CHIP_ID}"
-          if [ -n "$CHIP_ID" ]; then args+=(--unique-chip-id "$CHIP_ID"); fi
-          if [ "$SKIP_SETUP" = "true" ]; then args+=(--skip-setup); fi
-          ./unixnu build payload "${args[@]}"
-
-      - name: Show kernel log tail
-        if: always()
-        run: |
-          tail -800 out/fuxi/logs/kernel-bootstrap.log 2>/dev/null || echo "no kernel-bootstrap.log"
-          echo "--- log dir ---"
-          ls out/fuxi/logs/ 2>/dev/null || true
-      - name: Upload kernel and payload
-        uses: actions/upload-artifact@v4
-        with:
-          name: unixnu-${{ inputs.defconfig }}
-          path: |
-            out/*/kernel/**
-            out/*/payload/**
-            out/*/logs/**
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload userdata
-        if: inputs.upload_userdata && contains(inputs.steps, 'userdata')
-        uses: actions/upload-artifact@v4
-        with:
-          name: unixnu-userdata-${{ inputs.defconfig }}
-          path: out/*/userdata/**
-          if-no-files-found: error
-          retention-days: 7
