@@ -49,7 +49,7 @@ done
 export XNU_AVAILABILITY_PL=$ROOT/.cache/fakeroot/usr/local/libexec/availability.pl
 # runner SDKs may lack availability.pl; make_symbol_aliasing.sh requires it at $SDKROOT/usr/local/libexec
 if [ -x .cache/fakeroot/usr/local/libexec/availability.pl ]; then
-  for D in /Applications/Xcode_*.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs /Library/Developer/CommandLineTools/SDKs; do
+  for D in /Applications/Xcode_*.app/Contents/Developer/Platforms/*/Developer/SDKs /Library/Developer/CommandLineTools/SDKs; do
     for SDK in "$D"/*.sdk; do
       [ -d "$SDK" ] || continue
       mkdir -p "$SDK/usr/local/libexec" 2>/dev/null && cp .cache/fakeroot/usr/local/libexec/availability.pl "$SDK/usr/local/libexec/availability.pl" 2>/dev/null && chmod +x "$SDK/usr/local/libexec/availability.pl" 2>/dev/null || true
