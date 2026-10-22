@@ -47,6 +47,18 @@ for PATCH in "$ROOT"/patches/xnu/*.patch "$ROOT"/kits/NativePrelink/patches/*.pa
   fi
 done
 export XNU_AVAILABILITY_PL=$ROOT/.cache/fakeroot/usr/local/libexec/availability.pl
+# runner SDKs may lack availability.pl; make_symbol_aliasing.sh requires it at $SDKROOT/usr/local/libexec
+if [ -x .cache/fakeroot/usr/local/libexec/availability.pl ]; then
+  for D in /Applications/Xcode_*.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs /Library/Developer/CommandLineTools/SDKs; do
+    for SDK in "$D"/*.sdk; do
+      [ -d "$SDK" ] || continue
+      mkdir -p "$SDK/usr/local/libexec" 2>/dev/null && cp .cache/fakeroot/usr/local/libexec/availability.pl "$SDK/usr/local/libexec/availability.pl" 2>/dev/null && chmod +x "$SDK/usr/local/libexec/availability.pl" 2>/dev/null || true
+    done
+  done
+fi
+# IORPCMessageFromMach is behind #if KERNEL in iokit/DriverKit/IORPC.h; force -DKERNEL for C++ iig compiles
+sed -i '' 's|-fapple-kext $(OTHER_CXXFLAGS)|-fapple-kext -DKERNEL $(OTHER_CXXFLAGS)|' .cache/xnu-work/makedefs/MakeInc.def
+grep -n "CXXFLAGS_GEN" .cache/xnu-work/makedefs/MakeInc.def | head -2
 python3 scripts/prepare-xnu-source.py
 # The first pass of a new tree (XNU_BOOTSTRAP=1, set by the unixnu driver) only has to leave the compile records and
 # link.filelist for the archive builders that run after it, so it links without their archives.
