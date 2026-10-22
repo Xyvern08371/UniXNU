@@ -168,6 +168,12 @@ jobs:
           if [ "$SKIP_SETUP" = "true" ]; then args+=(--skip-setup); fi
           ./unixnu build payload "${args[@]}"
 
+      - name: Show kernel log tail
+        if: always()
+        run: |
+          tail -250 out/fuxi/logs/kernel-bootstrap.log 2>/dev/null || echo "no kernel-bootstrap.log"
+          echo "--- log dir ---"
+          ls out/fuxi/logs/ 2>/dev/null || true
       - name: Upload kernel and payload
         uses: actions/upload-artifact@v4
         with:
