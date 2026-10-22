@@ -59,6 +59,14 @@ fi
 # IORPCMessageFromMach is behind #if KERNEL in iokit/DriverKit/IORPC.h; force -DKERNEL for C++ iig compiles
 sed -i '' 's|-fapple-kext $(OTHER_CXXFLAGS)|-fapple-kext -DKERNEL $(OTHER_CXXFLAGS)|' .cache/xnu-work/makedefs/MakeInc.def
 grep -n "CXXFLAGS_GEN" .cache/xnu-work/makedefs/MakeInc.def | head -2
+# necp_client.c includes <CodeSignature/Entitlements.h>; xnu ships it as EXTERNAL_HEADERS/CoreEntitlements
+if [ -f .cache/xnu-work/EXTERNAL_HEADERS/CoreEntitlements/Entitlements.h ]; then
+  mkdir -p .cache/xnu-work/EXTERNAL_HEADERS/CodeSignature
+  cp .cache/xnu-work/EXTERNAL_HEADERS/CoreEntitlements/Entitlements.h .cache/xnu-work/EXTERNAL_HEADERS/CodeSignature/Entitlements.h
+  echo "CodeSignature/Entitlements.h linked from CoreEntitlements"
+else
+  echo "WARN: CoreEntitlements/Entitlements.h not found in work tree"
+fi
 python3 scripts/prepare-xnu-source.py
 # The first pass of a new tree (XNU_BOOTSTRAP=1, set by the unixnu driver) only has to leave the compile records and
 # link.filelist for the archive builders that run after it, so it links without their archives.
