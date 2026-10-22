@@ -146,43 +146,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           cd out/fuxi/tree
-          # 1) ensure pinned XNU source + work tree
-          if [ ! -d refer/xnu/.git ]; then
-            git clone --depth 1 --branch xnu-10063.141.1 https://github.com/apple-oss-distributions/xnu.git refer/xnu
-          fi
-          git -C refer/xnu fetch --depth 1 origin d8b80295118ef25ac3a784134bcf95cd8e88109f 2>/dev/null && git -C refer/xnu checkout --detach FETCH_HEAD 2>/dev/null || true
-          echo "refer/xnu HEAD=$(git -C refer/xnu rev-parse HEAD)"
-          if [ ! -d .cache/xnu-work/.git ]; then
-            git clone --shared refer/xnu .cache/xnu-work
-          fi
-          # 2) build availability.pl into every SDK
-          if [ ! -x .cache/fakeroot/usr/local/libexec/availability.pl ]; then
-            if [ ! -d refer/AvailabilityVersions/.git ]; then
-              git clone --depth 1 --branch AvailabilityVersions-141.1 https://github.com/apple-oss-distributions/AvailabilityVersions.git refer/AvailabilityVersions
-            fi
-            mkdir -p .cache/fakeroot build/availability
-            make -C refer/AvailabilityVersions install -j1 \
-              OBJROOT="$PWD/build/availability" SYMROOT="$PWD/build/availability" \
-              DSTROOT="$PWD/.cache/fakeroot" CMAKE="$(command -v cmake)" NINJA="$(command -v ninja)" >/dev/null 2>&1
-          fi
-          if [ -x .cache/fakeroot/usr/local/libexec/availability.pl ]; then
-            for D in "/Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs" "/Library/Developer/CommandLineTools/SDKs"; do
-              for SDK in "$D"/*.sdk; do
-                [ -d "$SDK" ] || continue
-                if mkdir -p "$SDK/usr/local/libexec" 2>/dev/null && cp .cache/fakeroot/usr/local/libexec/availability.pl "$SDK/usr/local/libexec/availability.pl" 2>/dev/null && chmod +x "$SDK/usr/local/libexec/availability.pl" 2>/dev/null; then
-                  echo "availability.pl -> $SDK"
-                else
-                  echo "skip (read-only or failed): $SDK"
-                fi
-              done
-            done
-          else
-            echo "WARN: availability.pl build failed"
-          fi
-          # 3) force -DKERNEL into CXXFLAGS_GEN
-          sed -i '' 's|-fapple-kext $(OTHER_CXXFLAGS)|-fapple-kext -DKERNEL $(OTHER_CXXFLAGS)|' .cache/xnu-work/makedefs/MakeInc.def
-          echo "--- CXXFLAGS_GEN after sed ---"
-          grep -n "CXXFLAGS_GEN" .cache/xnu-work/makedefs/MakeInc.def | head -2
+          echo "--- baseline diag ---"
+          grep -n "force -DKERNEL" scripts/build-xnu-4k-baseline.sh | head -2 || echo "NO fuxi sed in baseline"
+          grep -n "CXXFLAGS_GEN" .cache/xnu-work/makedefs/MakeInc.def 2>/dev/null | head -2 || echo "no xnu-work yet"
           cd "$GITHUB_WORKSPACE"
           args=()
           if [ -n "$IPSW_URL" ]; then args+=(--ipsw "$IPSW_URL"); fi
